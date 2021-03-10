@@ -1,0 +1,24 @@
+{
+  "name": "chinawilon/spider-php",
+  "description": "description",
+  "minimum-stability": "stable",
+  "license": "MIT",
+  "authors": [
+    {
+      "name": "chinawilon",
+      "email": "5wilon@sina.com"
+    }
+  ],
+  "autoload": {
+    "psr-4": {
+      "Spider\\":"src/"
+    }
+  },
+  "require": {
+    "ext-sockets": "*",
+    "ext-json": "*"
+  },
+  "require-dev": {
+    "phpunit/phpunit": ">=7.0.0"
+  }
+}
