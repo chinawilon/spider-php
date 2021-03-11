@@ -45,9 +45,10 @@ class Socket
      * @param array $header
      * @param string $body
      * @param int $timeout
-     * @return string | false
+     * @return string
+     * @throws SpiderException
      */
-    public function publish($uri, $method, $header = [], $body = '', $timeout = 10)
+    public function publish($uri, $method, $header = null, $body = '', $timeout = 10) :string
     {
         $this->preSend('PUB');
 
@@ -61,9 +62,13 @@ class Socket
         $command = json_encode($json);
         $command = pack('na*',  strlen($command), $command);
         socket_write($this->socket, $command, strlen($command));
-        $ret = socket_read($this->socket, 1024);
+        $ret = socket_read($this->socket, 1024, PHP_BINARY_READ);
         if (false === $ret) {
             socket_close($this->socket);
+            throw new SpiderException("socket read error");
+        }
+        if ( "" === $ret) {
+            throw new SpiderException("socket closed");
         }
         return $ret;
     }
@@ -71,16 +76,32 @@ class Socket
     /**
      * subscribe
      *
-     * @return string | false
+     * @param callable $callback
+     * @throws SpiderException
      */
-    public function subscribe()
+    public function subscribe(callable $callback): void
     {
         $this->preSend('SUB');
-        $ret = socket_read($this->socket, 1024);
-        if (false === $ret) {
-            socket_close($this->socket);
+        for(;;) {
+            $length = socket_read($this->socket, 8, PHP_BINARY_READ);
+            if ( "" === $length) {
+                throw new SpiderException("socket closed");
+            }
+            $len = unpack("i", $length);
+            if (! $len) {
+                throw new SpiderException("socket occur error");
+            }
+            $data = socket_read($this->socket, $len[1], PHP_BINARY_READ);
+            if ( "" === $data) {
+                throw new SpiderException("socket closed");
+            }
+            if (false === $data) {
+                socket_close($this->socket);
+                throw new SpiderException("socket read error");
+            }
+            // deal the data
+            $callback($data);
         }
-        return $ret;
     }
 
 

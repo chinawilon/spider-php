@@ -2,29 +2,33 @@
 
 use PHPUnit\Framework\TestCase;
 use Spider\Socket;
+use Spider\SpiderException;
 
 class SocketTest extends TestCase
 {
+    /**
+     * @throws SpiderException
+     */
     public function testPublish(): void
     {
         $spider = new Socket("127.0.0.1", "9501");
-        for($i=0; $i<= 100; $i++) {
+        for($i=0; $i< 100; $i++) {
             echo $spider->publish('http://ip.taobao.com/service/getIpInfo.php?ip='.$this->ip(), 'GET') . PHP_EOL;
         }
     }
 
+    /**
+     * @throws SpiderException
+     */
     public function testSubscribe(): void
     {
         $spider = new Socket("127.0.0.1", "9501");
-        while(1) {
-            $f = $spider->subscribe();
-            if (false === $f) {
-                echo "subscribe error";
-                break;
-            }
-            //file_put_contents("test.txt", $f, FILE_APPEND);
-        }
+        $spider->subscribe(static function ($json){
+            file_put_contents("test.txt", $json.PHP_EOL, FILE_APPEND);
+        });
+
     }
+
 
     // random ip
     public function ip(): string
@@ -41,7 +45,12 @@ class SocketTest extends TestCase
             array('-770113536', '-768606209'), // 210.25.0.0-210.47.255.255
             array('-569376768', '-564133889'), // 222.16.0.0-222.95.255.255
         );
-        $rand_key = mt_rand(0, 9);
-        return long2ip(mt_rand($ip_long[$rand_key][0], $ip_long[$rand_key][1]));
+        try {
+            $rand_key = random_int(0, 9);
+            return long2ip(random_int($ip_long[$rand_key][0], $ip_long[$rand_key][1]));
+        } catch (Exception $e) {
+            return "8.8.8.8";
+        }
+
     }
 }
