@@ -106,6 +106,10 @@ class Socket
             if ($status = socket_last_error()) {
                 throw new SpiderException("socket occur error ", socket_strerror($status));
             }
+            $ret .= $tmp;
+            if ($tmp === "") {
+                break;
+            }
         }while($n !== 0);
 
         return $ret;
