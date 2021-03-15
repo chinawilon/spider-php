@@ -83,15 +83,13 @@ class Socket
     {
         $this->preSend('SUB');
         for(;;) {
-            $length = socket_read($this->socket, 2, PHP_BINARY_READ);
-            if ( "" === $length) {
-                throw new SpiderException("socket closed");
-            }
+            $length = $this->readFulWithBinary($this->socket, 2);
+
             $len = unpack("n", $length);
             if (! $len) {
                 throw new SpiderException("socket occur error");
             }
-            $payload = socket_read($this->socket, $len[1], PHP_BINARY_READ);
+            $payload = $this->readFulWithBinary($this->socket, $len[1]);
             if ( "" === $payload) {
                 throw new SpiderException("socket closed");
             }
@@ -104,6 +102,25 @@ class Socket
         }
     }
 
+    /**
+     * @param $reader
+     * @param $n
+     * @return string
+     * @throws SpiderException
+     */
+    private function readFulWithBinary($reader, $n): string
+    {
+        $ret = '';
+        do{
+            $tmp = socket_read($reader, $n, PHP_BINARY_READ);
+            $n -= strlen($tmp);
+            if ($status = socket_last_error()) {
+                throw new SpiderException("socket occur error ", socket_strerror($status));
+            }
+        }while($n !== 0);
+
+        return $ret;
+    }
 
     /**
      * @param $method

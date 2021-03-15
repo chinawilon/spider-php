@@ -12,7 +12,8 @@ class SocketTest extends TestCase
     public function testPublish(): void
     {
         $spider = new Socket("127.0.0.1", "9501");
-        for($i=0; $i< 100; $i++) {
+        for($i=0; $i< 10000; $i++) {
+            usleep(10);
             echo $spider->publish('http://ip.taobao.com/service/getIpInfo.php?ip='.$this->ip(), 'GET') . PHP_EOL;
         }
     }
