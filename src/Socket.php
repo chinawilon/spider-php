@@ -84,19 +84,8 @@ class Socket
         $this->preSend('SUB');
         for(;;) {
             $length = $this->readFulWithBinary($this->socket, 2);
-
             $len = unpack("n", $length);
-            if (! $len) {
-                throw new SpiderException("socket occur error");
-            }
             $payload = $this->readFulWithBinary($this->socket, $len[1]);
-            if ( "" === $payload) {
-                throw new SpiderException("socket closed");
-            }
-            if (false === $payload) {
-                socket_close($this->socket);
-                throw new SpiderException("socket read error");
-            }
             // deal the data
             $callback($payload);
         }
