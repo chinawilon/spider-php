@@ -11,9 +11,9 @@ class SocketTest extends TestCase
      */
     public function testPublish(): void
     {
-        $spider = new Socket("127.0.0.1", "9501");
-        for($i=0; $i< 10000; $i++) {
-            usleep(10);
+        $spider = new Socket("127.0.0.1", "8080");
+        for($i=0; $i< 1000; $i++) {
+            usleep(1);
             echo $spider->publish('http://ip.taobao.com/service/getIpInfo.php?ip='.$this->ip(), 'GET') . PHP_EOL;
         }
     }
@@ -23,11 +23,10 @@ class SocketTest extends TestCase
      */
     public function testSubscribe(): void
     {
-        $spider = new Socket("127.0.0.1", "9501");
-        $spider->subscribe(static function ($json){
-            file_put_contents("test.txt", $json.PHP_EOL, FILE_APPEND);
-        });
-
+//        $spider = new Socket("127.0.0.1", "8080");
+//        $spider->subscribe(static function ($json){
+//            file_put_contents("test.txt", $json.PHP_EOL, FILE_APPEND);
+//        });
     }
 
 

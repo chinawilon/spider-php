@@ -40,6 +40,16 @@ class Socket
     }
 
     /**
+     * Close Socket
+     */
+    public function close(): void
+    {
+        if ( $this->socket ) {
+            socket_close($this->socket);
+        }
+    }
+
+    /**
      * @param $uri
      * @param $method
      * @param array $header
@@ -48,9 +58,9 @@ class Socket
      * @return string
      * @throws SpiderException
      */
-    public function publish($uri, $method, $header = null, $body = '', $timeout = 10) :string
+    public function publish($uri, $method, $header = null, $body = '', $timeout = 5) :string
     {
-        $this->preSend('PUB');
+        $this->preSend('PUB ');
 
         $json = [
             'uri' => $uri,
@@ -60,7 +70,7 @@ class Socket
             'timeout' => $timeout
         ];
         $command = json_encode($json);
-        $command = pack('na*',  strlen($command), $command);
+        $command = pack('Na*',  strlen($command), $command);
         socket_write($this->socket, $command, strlen($command));
         $ret = socket_read($this->socket, 1024, PHP_BINARY_READ);
         if (false === $ret) {
@@ -68,6 +78,7 @@ class Socket
             throw new SpiderException("socket read error");
         }
         if ( "" === $ret) {
+            socket_close($this->socket);
             throw new SpiderException("socket closed");
         }
         return $ret;
@@ -81,11 +92,15 @@ class Socket
      */
     public function subscribe(callable $callback): void
     {
-        $this->preSend('SUB');
+        $this->preSend('SUB ');
         for(;;) {
-            $length = $this->readFulWithBinary($this->socket, 2);
-            $len = unpack("n", $length);
+            $length = $this->readFulWithBinary($this->socket, 4);
+            $len = unpack("N", $length);
             $payload = $this->readFulWithBinary($this->socket, $len[1]);
+            if ($payload === '' || $payload === false) {
+                socket_close($this->socket);
+                break;
+            }
             // deal the data
             $callback($payload);
         }
@@ -102,14 +117,15 @@ class Socket
         $ret = '';
         do{
             $tmp = socket_read($reader, $n, PHP_BINARY_READ);
+            if ($tmp === "" || $tmp === false) {
+                $this->close();
+                break;
+            }
             $n -= strlen($tmp);
             if ($status = socket_last_error()) {
                 throw new SpiderException("socket occur error ", socket_strerror($status));
             }
             $ret .= $tmp;
-            if ($tmp === "") {
-                break;
-            }
         }while($n !== 0);
 
         return $ret;
@@ -125,11 +141,18 @@ class Socket
             return;
         }
         $this->preFlag = true;
-        $command = pack('a3', $method);
+        $command = pack('a4', $method);
         if (! $this->socket) {
             $this->connect();
         }
         socket_write($this->socket, $command, strlen($command));
     }
 
+    /**
+     * Destruct
+     */
+    public function __destruct()
+    {
+        $this->close();
+    }
 }
