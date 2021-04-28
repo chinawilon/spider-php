@@ -88,10 +88,10 @@ class Socket
             throw new SpiderException('Connection is closed');
         }
         [, $length] = unpack('N', $data);
-        if (! $data = $this->reader->read($length)) {
+        if (! $payload = $this->reader->read($length)) {
             throw new SpiderException('Connection is closed');
         }
-        return $data;
+        return $payload;
     }
 
 
@@ -122,12 +122,12 @@ class Socket
         }
 
         for(;;) {
-            $length = $this->readFulWithBinary($this->socket, 4);
-            $len = unpack("N", $length);
-            $payload = $this->readFulWithBinary($this->socket, $len[1]);
-            if ($payload === '' || $payload === false) {
-                socket_close($this->socket);
-                break;
+            if (! $data = $this->reader->read(4) ) {
+                throw new SpiderException('Connection is closed');
+            }
+            [, $length] = unpack('N', $data);
+            if (! $payload = $this->reader->read($length)) {
+                throw new SpiderException('Connection is closed');
             }
             // deal the data
             $callback($payload);
