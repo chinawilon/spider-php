@@ -10,7 +10,19 @@ class Socket
     private $ip;
     private $port;
     private $socket;
-    private $preFlag = false;
+    /**
+     * @var BuffIO
+     */
+    private $writer;
+    /**
+     * @var BuffIO
+     */
+    private $reader;
+
+    public const SUB_TYPE = 'SUB ';
+    public const PUB_TYPE = 'PUB ';
+    private $type;
+
 
     /**
      * Socket constructor.
@@ -36,23 +48,16 @@ class Socket
         if (! socket_connect($socket, $this->ip, $this->port)) {
             throw New RuntimeException("socket connect error");
         }
+        $this->writer = new BuffIO($socket);
+        $this->reader = new BuffIO($socket);
         $this->socket = $socket;
     }
 
-    /**
-     * Close Socket
-     */
-    public function close(): void
-    {
-        if ( $this->socket ) {
-            socket_close($this->socket);
-        }
-    }
 
     /**
      * @param $uri
      * @param $method
-     * @param array $header
+     * @param null $header
      * @param string $body
      * @param int $timeout
      * @return string
@@ -60,7 +65,12 @@ class Socket
      */
     public function publish($uri, $method, $header = null, $body = '', $timeout = 5) :string
     {
-        $this->preSend('PUB ');
+        if (! $this->socket) {
+            $this->connect();
+        }
+        if (! $this->type) {
+            $this->sendType(self::PUB_TYPE);
+        }
 
         $json = [
             'uri' => $uri,
@@ -71,17 +81,29 @@ class Socket
         ];
         $command = json_encode($json);
         $command = pack('Na*',  strlen($command), $command);
-        socket_write($this->socket, $command, strlen($command));
-        $ret = socket_read($this->socket, 1024, PHP_BINARY_READ);
-        if (false === $ret) {
-            socket_close($this->socket);
-            throw new SpiderException("socket read error");
+        $this->writer->write($command);
+        $this->writer->flush();
+
+        if (! $data = $this->reader->read(4) ) {
+            throw new SpiderException('Connection is closed');
         }
-        if ( "" === $ret) {
-            socket_close($this->socket);
-            throw new SpiderException("socket closed");
+        [, $length] = unpack('N', $data);
+        if (! $data = $this->reader->read($length)) {
+            throw new SpiderException('Connection is closed');
         }
-        return $ret;
+        return $data;
+    }
+
+
+    /**
+     * @param string $type
+     */
+    public function sendType($type): void
+    {
+        $this->type = $type;
+        $command = pack('a4', $type);
+        $this->writer->write($command);
+        $this->writer->flush();
     }
 
     /**
@@ -92,7 +114,13 @@ class Socket
      */
     public function subscribe(callable $callback): void
     {
-        $this->preSend('SUB ');
+        if (! $this->socket) {
+            $this->connect();
+        }
+        if (! $this->type) {
+            $this->sendType(self::SUB_TYPE);
+        }
+
         for(;;) {
             $length = $this->readFulWithBinary($this->socket, 4);
             $len = unpack("N", $length);
@@ -106,53 +134,4 @@ class Socket
         }
     }
 
-    /**
-     * @param $reader
-     * @param $n
-     * @return string
-     * @throws SpiderException
-     */
-    private function readFulWithBinary($reader, $n): string
-    {
-        $ret = '';
-        do{
-            $tmp = socket_read($reader, $n, PHP_BINARY_READ);
-            if ($tmp === "" || $tmp === false) {
-                $this->close();
-                break;
-            }
-            $n -= strlen($tmp);
-            if ($status = socket_last_error()) {
-                throw new SpiderException("socket occur error ", socket_strerror($status));
-            }
-            $ret .= $tmp;
-        }while($n !== 0);
-
-        return $ret;
-    }
-
-    /**
-     * @param $method
-     * @return string|void
-     */
-    private function preSend($method)
-    {
-        if ($this->preFlag) {
-            return;
-        }
-        $this->preFlag = true;
-        $command = pack('a4', $method);
-        if (! $this->socket) {
-            $this->connect();
-        }
-        socket_write($this->socket, $command, strlen($command));
-    }
-
-    /**
-     * Destruct
-     */
-    public function __destruct()
-    {
-        $this->close();
-    }
 }
