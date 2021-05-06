@@ -1,19 +1,20 @@
 <?php
 
+use Spider\IO\PHPSocket;
 use PHPUnit\Framework\TestCase;
-use Spider\Socket;
+use Spider\IO\SwooleSocket;
 use Spider\SpiderException;
+use function Co\run;
 
 class SocketTest extends TestCase
 {
     /**
      * @throws SpiderException
      */
-    public function testPublish(): void
+    public function testPHPPublish(): void
     {
-        $spider = new Socket("127.0.0.1", "8080");
-        for($i=0; $i< 100; $i++) {
-            usleep(1);
+        $spider = new Spider\Spider(new PHPSocket('172.17.0.2', 8080));
+        for($i=0; $i< 1000; $i++) {
             echo $spider->publish('http://ip.taobao.com/service/getIpInfo.php?ip='.$this->ip(), 'GET') . PHP_EOL;
         }
     }
@@ -21,9 +22,20 @@ class SocketTest extends TestCase
     /**
      * @throws SpiderException
      */
-    public function testSubscribe(): void
+    public function testSwoolePublish(): void
     {
-        $spider = new Socket("127.0.0.1", "8080");
+        $spider = new Spider\Spider(new SwooleSocket('172.17.0.2', 8080));
+        for ($i = 0; $i < 1000; $i++) {
+            echo $spider->publish('http://ip.taobao.com/service/getIpInfo.php?ip=' . $this->ip(), 'GET') . PHP_EOL;
+        }
+    }
+
+    /**
+     * @throws SpiderException
+     */
+    public function testPHPSubscribe(): void
+    {
+        $spider = new Spider\Spider(new PHPSocket('172.17.0.2', 8080));
         $spider->subscribe(static function ($json){
             file_put_contents("test.txt", $json.PHP_EOL, FILE_APPEND);
         });

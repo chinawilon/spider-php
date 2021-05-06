@@ -1,58 +1,40 @@
 <?php
 
+
 namespace Spider;
 
 
-use RuntimeException;
+use Spider\IO\IOInterface;
 
-class Socket
+
+class Spider
 {
-    private $ip;
-    private $port;
-    private $socket;
-    /**
-     * @var BuffIO
-     */
-    private $writer;
-    /**
-     * @var BuffIO
-     */
-    private $reader;
+    protected $host;
+    protected $port;
+    protected $type;
 
     public const SUB_TYPE = 'SUB ';
     public const PUB_TYPE = 'PUB ';
-    private $type;
-
 
     /**
-     * Socket constructor.
+     * @var BuffIO
+     */
+    protected $writer;
+    /**
+     * @var BuffIO
+     */
+    protected $reader;
+
+    /**
+     * Spider constructor.
      *
-     * @param $ip
-     * @param $port
+     * @param IOInterface $io
      */
-    public function __construct($ip, $port)
+    public function __construct(IOInterface $io)
     {
-        $this->ip = $ip;
-        $this->port = $port;
+        $this->writer = new BuffIO($io);
+        $this->reader = new BuffIO($io);
     }
-
-    /**
-     * Connect the socket
-     */
-    public function connect(): void
-    {
-        $socket = socket_create(AF_INET, SOCK_STREAM, SOL_TCP);
-        if (! $socket) {
-            throw new RuntimeException("socket create exception");
-        }
-        if (! socket_connect($socket, $this->ip, $this->port)) {
-            throw New RuntimeException("socket connect error");
-        }
-        $this->writer = new BuffIO($socket);
-        $this->reader = new BuffIO($socket);
-        $this->socket = $socket;
-    }
-
 
     /**
      * @param $uri
@@ -65,9 +47,6 @@ class Socket
      */
     public function publish($uri, $method, $header = null, $body = '', $timeout = 5) :string
     {
-        if (! $this->socket) {
-            $this->connect();
-        }
         if (! $this->type) {
             $this->sendType(self::PUB_TYPE);
         }
@@ -114,9 +93,6 @@ class Socket
      */
     public function subscribe(callable $callback): void
     {
-        if (! $this->socket) {
-            $this->connect();
-        }
         if (! $this->type) {
             $this->sendType(self::SUB_TYPE);
         }

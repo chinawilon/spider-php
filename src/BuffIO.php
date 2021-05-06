@@ -4,15 +4,23 @@
 namespace Spider;
 
 
+use Spider\IO\IOInterface;
+
 class BuffIO
 {
-    private $socket;
 
+    /**
+     * @var string
+     */
     private $left = '';
+    /**
+     * @var IOInterface
+     */
+    private $io;
 
-    public function __construct($socket)
+    public function __construct(IOInterface $io)
     {
-        $this->socket = $socket;
+        $this->io = $io;
     }
 
     public function write(string $msg): void
@@ -24,7 +32,8 @@ class BuffIO
     {
         $msg = $this->left;
         $this->left = '';
-        socket_write($this->socket, $msg, strlen($msg));
+        $this->io->write($msg);
+
     }
 
     public function read(int $n)
@@ -35,8 +44,7 @@ class BuffIO
                 $this->left = substr($this->left, $n);
                 return $data;
             }
-            if (!$msg = socket_read($this->socket, 1024)) {
-                socket_close($this->socket);
+            if (!$msg = $this->io->read()) {
                 return '';
             }
             $this->left .= $msg;
