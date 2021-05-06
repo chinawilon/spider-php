@@ -9,8 +9,9 @@ use Spider\IO\IOInterface;
 
 class Spider
 {
-    protected $host;
-    protected $port;
+    /**
+     * @var string
+     */
     protected $type;
 
     public const SUB_TYPE = 'SUB ';
