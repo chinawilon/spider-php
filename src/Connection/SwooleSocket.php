@@ -1,13 +1,13 @@
 <?php
 
 
-namespace Spider\IO;
+namespace Spider\Connection;
 
 
 use Spider\SpiderException;
 use Swoole\Client;
 
-class SwooleSocket implements IOInterface
+class SwooleSocket implements ConnectionInterface
 {
     /**
      * @var Client
@@ -29,9 +29,9 @@ class SwooleSocket implements IOInterface
         }
     }
 
-    public function read()
+    public function read(): string
     {
-        return $this->client->recv();
+        return $this->client->recv() ?? '';
     }
 
     public function write(string $msg): void

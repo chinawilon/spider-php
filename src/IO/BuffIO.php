@@ -1,12 +1,13 @@
 <?php
 
 
-namespace Spider;
+namespace Spider\IO;
 
 
-use Spider\IO\IOInterface;
 
-class BuffIO
+use Spider\Connection\ConnectionInterface;
+
+class BuffIO implements IOInterface
 {
 
     /**
@@ -14,29 +15,21 @@ class BuffIO
      */
     private $left = '';
     /**
-     * @var IOInterface
+     * @var ConnectionInterface
      */
-    private $io;
+    private $connection;
 
-    public function __construct(IOInterface $io)
+    public function __construct(ConnectionInterface $connection)
     {
-        $this->io = $io;
+        $this->connection = $connection;
     }
 
     public function write(string $msg): void
     {
-        $this->left .= $msg;
+        $this->connection->write($msg);
     }
 
-    public function flush(): void
-    {
-        $msg = $this->left;
-        $this->left = '';
-        $this->io->write($msg);
-
-    }
-
-    public function read(int $n)
+    public function read(?int $n)
     {
         for (;;) {
             if (strlen($this->left) >= $n) {
@@ -44,7 +37,7 @@ class BuffIO
                 $this->left = substr($this->left, $n);
                 return $data;
             }
-            if (!$msg = $this->io->read()) {
+            if (!$msg = $this->connection->read()) {
                 return '';
             }
             $this->left .= $msg;

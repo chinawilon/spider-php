@@ -4,8 +4,9 @@
 namespace Spider;
 
 
-use Spider\IO\IOInterface;
 
+
+use Spider\IO\IOInterface;
 
 class Spider
 {
@@ -18,23 +19,29 @@ class Spider
     public const PUB_TYPE = 'PUB ';
 
     /**
-     * @var BuffIO
+     * @var IOInterface
      */
     protected $writer;
     /**
-     * @var BuffIO
+     * @var IOInterface
      */
     protected $reader;
+    /**
+     * @var bool
+     */
+    private $needPack;
 
     /**
      * Spider constructor.
      *
      * @param IOInterface $io
+     * @param bool $needPack
      */
-    public function __construct(IOInterface $io)
+    public function __construct(IOInterface $io, $needPack = true)
     {
-        $this->writer = new BuffIO($io);
-        $this->reader = new BuffIO($io);
+        $this->writer = $io;
+        $this->reader = clone $io;
+        $this->needPack = $needPack;
     }
 
     /**
@@ -46,12 +53,40 @@ class Spider
      * @return string
      * @throws SpiderException
      */
-    public function publish($uri, $method, $header = null, $body = '', $timeout = 5) :string
+    public function publish($uri, $method, $header = null, $body = '', $timeout = 5): string
     {
         if (! $this->type) {
             $this->sendType(self::PUB_TYPE);
         }
 
+        $this->sendRequest($uri, $method, $header, $body, $timeout);
+
+        if ( $this->needPack ) {
+            if (!$data = $this->reader->read(4)) {
+                throw new SpiderException('Connection is closed');
+            }
+            [, $length] = unpack('N', $data);
+            if (!$payload = $this->reader->read($length)) {
+                throw new SpiderException('Connection is closed');
+            }
+        } else {
+            $payload = $this->reader->read(null);
+        }
+        return $payload;
+    }
+
+
+    /**
+     * send request
+     *
+     * @param $uri
+     * @param $method
+     * @param $header
+     * @param $body
+     * @param $timeout
+     */
+    public function sendRequest($uri, $method, $header, $body, $timeout): void
+    {
         $json = [
             'uri' => $uri,
             'method' => $method,
@@ -60,18 +95,10 @@ class Spider
             'timeout' => $timeout
         ];
         $command = json_encode($json);
-        $command = pack('Na*',  strlen($command), $command);
+        if ( $this->needPack ) {
+            $command = pack('Na*', strlen($command), $command);
+        }
         $this->writer->write($command);
-        $this->writer->flush();
-
-        if (! $data = $this->reader->read(4) ) {
-            throw new SpiderException('Connection is closed');
-        }
-        [, $length] = unpack('N', $data);
-        if (! $payload = $this->reader->read($length)) {
-            throw new SpiderException('Connection is closed');
-        }
-        return $payload;
     }
 
 
@@ -83,7 +110,6 @@ class Spider
         $this->type = $type;
         $command = pack('a4', $type);
         $this->writer->write($command);
-        $this->writer->flush();
     }
 
     /**

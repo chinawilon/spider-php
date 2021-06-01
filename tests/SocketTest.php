@@ -1,9 +1,13 @@
 <?php
 
-use Spider\IO\PHPSocket;
+use Spider\Connection\PHPSocket;
+use Spider\Connection\SwooleSocket;
+use Spider\Connection\WebSocket;
+use Spider\IO\BuffIO;
 use PHPUnit\Framework\TestCase;
-use Spider\IO\SwooleSocket;
+use Spider\IO\DataIO;
 use Spider\SpiderException;
+use function Co\run;
 
 class SocketTest extends TestCase
 {
@@ -11,21 +15,35 @@ class SocketTest extends TestCase
     /**
      * @var string
      */
-    protected $host = '172.17.0.2';
+    protected $host = '172.17.0.3';
     /**
      * @var int
      */
     protected $port = 8080;
+
 
     /**
      * @throws SpiderException
      */
     public function testPHPPublish(): void
     {
-        $spider = new Spider\Spider(new PHPSocket($this->host, $this->port));
-        for($i=0; $i< 1000; $i++) {
-            echo $spider->publish('http://ip.taobao.com/service/getIpInfo.php?ip='.$this->ip(), 'GET') . PHP_EOL;
+        $ps = new PHPSocket($this->host, $this->port);
+        $spider = new Spider\Spider(new BuffIO($ps));
+        for($i=0; $i< 10000; $i++) {
+            echo $spider->publish('http://httpbin.org/get?key='.$i, 'GET') . PHP_EOL;
         }
+    }
+
+    public function testWebSocketPublish(): void
+    {
+        run(function () {
+            $ws = new WebSocket($this->host, $this->port);
+            $ws->upgrade('/ws');
+            $spider = new Spider\Spider(new DataIO($ws), false);
+            for($i=0; $i< 10000; $i++) {
+                echo $spider->publish('http://httpbin.org/get?key='.$i, 'GET') . PHP_EOL;
+            }
+        });
     }
 
     /**
@@ -33,9 +51,10 @@ class SocketTest extends TestCase
      */
     public function testSwoolePublish(): void
     {
-        $spider = new Spider\Spider(new SwooleSocket($this->host, $this->port));
+        $ss = new SwooleSocket($this->host, $this->port);
+        $spider = new Spider\Spider(new BuffIO($ss));
         for ($i = 0; $i < 1000; $i++) {
-            echo $spider->publish('http://ip.taobao.com/service/getIpInfo.php?ip=' . $this->ip(), 'GET') . PHP_EOL;
+            echo $spider->publish('http://httpbin.org/post', 'POST') . PHP_EOL;
         }
     }
 
@@ -44,7 +63,8 @@ class SocketTest extends TestCase
      */
     public function testPHPSubscribe(): void
     {
-        $spider = new Spider\Spider(new PHPSocket($this->host, $this->port));
+        $ps = new PHPSocket($this->host, $this->port);
+        $spider = new Spider\Spider(new BuffIO($ps));
         $spider->subscribe(static function ($json){
             file_put_contents("test.txt", $json.PHP_EOL, FILE_APPEND);
         });
@@ -55,7 +75,8 @@ class SocketTest extends TestCase
      */
     public function testSwooleSubscribe(): void
     {
-        $spider = new Spider\Spider(new SwooleSocket($this->host, $this->port));
+        $ss = new SwooleSocket($this->host, $this->port);
+        $spider = new Spider\Spider(new BuffIO($ss));
         $spider->subscribe(static function ($json){
             file_put_contents("test.txt", $json.PHP_EOL, FILE_APPEND);
         });

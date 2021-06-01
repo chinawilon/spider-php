@@ -1,12 +1,12 @@
 <?php
 
 
-namespace Spider\IO;
+namespace Spider\Connection;
 
 
 use RuntimeException;
 
-class PHPSocket implements IOInterface
+class PHPSocket implements ConnectionInterface
 {
     private $socket;
 
@@ -28,7 +28,7 @@ class PHPSocket implements IOInterface
         $this->socket = $socket;
     }
 
-    public function read()
+    public function read(): string
     {
         if (!$msg = socket_read($this->socket, 1024)) {
             socket_close($this->socket);
